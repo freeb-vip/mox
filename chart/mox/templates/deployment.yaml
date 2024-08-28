@@ -8,6 +8,8 @@ spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "mox.selectorLabels" . | nindent 6 }}
@@ -33,8 +35,11 @@ spec:
       initContainers:
         - name: {{ .Chart.Name }}-init
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          command: ['sh', '-c', "test -f /mox/config/domains.conf && echo ok || mox quickstart -existing-webserver -hostname {{ .Values.mail.hostname | default "mail.example.com" }} {{ .Values.mail.name }} root"]
+          command: ['sh', '-c', "if [ -f /mox/config/mox.conf ];then echo ok;else mox quickstart -existing-webserver -hostname {{ .Values.mail.hostname | default "mail.example.com" }} {{ .Values.mail.name }} mox;fi && unexpand -f -t 4 /opt/config/mox.conf > /mox/config/mox.conf"]
           volumeMounts:
+            - name: config
+              mountPath: /opt/config/mox.conf
+              subPath: mox.conf
             - name: data
               mountPath: /mox
       containers:
@@ -50,6 +55,7 @@ spec:
             {{- range .Values.service.ports }}
             - name: tcp-{{ . }}
               containerPort: {{ . }}
+              hostPort: {{ . }}
               protocol: TCP
             {{- end }}
           livenessProbe:
@@ -58,10 +64,12 @@ spec:
             {{- toYaml .Values.readinessProbe | nindent 12 }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: MOXCONF
+              value: "/mox/config/mox.conf"
+            - name: MOX_DOCKER
+              value: "yes"
           volumeMounts:
-            - name: config
-              mountPath: /mox/config/mox.conf
-              subPath: mox.conf
             - name: data
               mountPath: /mox
       volumes:

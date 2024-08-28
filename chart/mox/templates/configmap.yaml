@@ -5,7 +5,7 @@ metadata:
   labels:
   {{- include "mox.labels" . | nindent 4 }}
 data:
-  config: |
+  mox.conf: |
     # NOTE: This config file is in 'sconf' format. Indent with tabs. Comments must be
     # on their own line, they don't end a line. Do not escape or quote strings.
     # Details: https://pkg.go.dev/github.com/mjl-/sconf.
@@ -14,21 +14,21 @@ data:
     # Directory where all data is stored, e.g. queue, accounts and messages, ACME TLS
     # certs/keys. If this is a relative path, it is relative to the directory of
     # mox.conf.
-    DataDir: {{ .Values.mail.dataDir | default "../data" }}
+    DataDir: {{ .Values.mail.dataDir }}
 
     # Default log level, one of: error, info, debug, trace, traceauth, tracedata.
     # Trace logs SMTP and IMAP protocol transcripts, with traceauth also messages with
     # passwords, and tracedata on top of that also the full data exchanges (full
     # messages), which can be a large amount of data.
-    LogLevel: info
+    LogLevel: debug
 
     # User to switch to after binding to all sockets as root. Default: mox. If the
     # value is not a known user, it is parsed as integer and used as uid and gid.
     # (optional)
-    User: root
+    User: mox
 
     # Full hostname of system, e.g. mail.<domain>
-    Hostname: {{ .Values.mail.hostname | default "mail.example.com" }}
+    Hostname: {{ .Values.mail.hostname }}
 
     # If enabled, a single DNS TXT lookup of _updates.xmox.nl is done every 24h to
     # check for a new release. Each time a new release is found, a changelog is
@@ -50,164 +50,162 @@ data:
     # configuration checks, for acme automatic tls certificates and monitoring of ips
     # in dnsbls if those are configured.
     Listeners:
-      internal:
+        internal:
 
-        # Use 0.0.0.0 to listen on all IPv4 and/or :: to listen on all IPv6 addresses, but
-        # it is better to explicitly specify the IPs you want to use for email, as mox
-        # will make sure outgoing connections will only be made from one of those IPs. If
-        # both outgoing IPv4 and IPv6 connectivity is possible, and only one family has
-        # explicitly configured addresses, both address families are still used for
-        # outgoing connections. Use the "direct" transport to limit address families for
-        # outgoing connections.
-        IPs:
-          {{- range .Values.mail.internal.IPs }}
-          - {{ . }}
-          {{- end }}
+            # Use 0.0.0.0 to listen on all IPv4 and/or :: to listen on all IPv6 addresses, but
+            # it is better to explicitly specify the IPs you want to use for email, as mox
+            # will make sure outgoing connections will only be made from one of those IPs. If
+            # both outgoing IPv4 and IPv6 connectivity is possible, and only one family has
+            # explicitly configured addresses, both address families are still used for
+            # outgoing connections. Use the "direct" transport to limit address families for
+            # outgoing connections.
+            IPs:
+                - 127.0.0.1
+                - ::1
 
-        # If empty, the config global Hostname is used. (optional)
-        Hostname: localhost
+            # If empty, the config global Hostname is used. (optional)
+            Hostname: localhost
 
-        # Account web interface, for email users wanting to change their accounts, e.g.
-        # set new password, set new delivery rulesets. Default path is /. (optional)
-        AccountHTTP:
-          Enabled: true
+            # Account web interface, for email users wanting to change their accounts, e.g.
+            # set new password, set new delivery rulesets. Default path is /. (optional)
+            AccountHTTP:
+                Enabled: true
 
-          # Default 80 for HTTP and 443 for HTTPS. (optional)
-          Port: 80
+                # Default 80 for HTTP and 443 for HTTPS. (optional)
+                Port: 1080
 
-          # If set, X-Forwarded-* headers are used for the remote IP address for rate
-          # limiting and for the "secure" status of cookies. (optional)
-          Forwarded: true
+                # If set, X-Forwarded-* headers are used for the remote IP address for rate
+                # limiting and for the "secure" status of cookies. (optional)
+                Forwarded: true
 
-        # Admin web interface, for managing domains, accounts, etc. Default path is
-        # /admin/. Preferably only enable on non-public IPs. Hint: use 'ssh -L
-        # 8080:localhost:80 you@yourmachine' and open http://localhost:8080/admin/, or set
-        # up a tunnel (e.g. WireGuard) and add its IP to the mox 'internal' listener.
-        # (optional)
-        AdminHTTP:
-          Enabled: true
+            # Admin web interface, for managing domains, accounts, etc. Default path is
+            # /admin/. Preferably only enable on non-public IPs. Hint: use 'ssh -L
+            # 8080:localhost:80 you@yourmachine' and open http://localhost:8080/admin/, or set
+            # up a tunnel (e.g. WireGuard) and add its IP to the mox 'internal' listener.
+            # (optional)
+            AdminHTTP:
+                Enabled: true
 
-          # Default 80 for HTTP and 443 for HTTPS. (optional)
-          Port: 80
+                # Default 80 for HTTP and 443 for HTTPS. (optional)
+                Port: 1080
 
-          # If set, X-Forwarded-* headers are used for the remote IP address for rate
-          # limiting and for the "secure" status of cookies. (optional)
-          Forwarded: true
+                # If set, X-Forwarded-* headers are used for the remote IP address for rate
+                # limiting and for the "secure" status of cookies. (optional)
+                Forwarded: true
 
-        # Webmail client, for reading email. Default path is /webmail/. (optional)
-        WebmailHTTP:
-          Enabled: true
+            # Webmail client, for reading email. Default path is /webmail/. (optional)
+            WebmailHTTP:
+                Enabled: true
 
-          # Default 80 for HTTP and 443 for HTTPS. (optional)
-          Port: 80
+                # Default 80 for HTTP and 443 for HTTPS. (optional)
+                Port: 1080
 
-          # If set, X-Forwarded-* headers are used for the remote IP address for rate
-          # limiting and for the "secure" status of cookies. (optional)
-          Forwarded: true
+                # If set, X-Forwarded-* headers are used for the remote IP address for rate
+                # limiting and for the "secure" status of cookies. (optional)
+                Forwarded: true
 
-        # Like WebAPIHTTP, but with plain HTTP, without TLS. (optional)
-        WebAPIHTTP:
-          Enabled: true
+            # Like WebAPIHTTP, but with plain HTTP, without TLS. (optional)
+            WebAPIHTTP:
+                Enabled: true
 
-          # Default 80 for HTTP and 443 for HTTPS. (optional)
-          Port: 80
+                # Default 80 for HTTP and 443 for HTTPS. (optional)
+                Port: 1080
 
-          # If set, X-Forwarded-* headers are used for the remote IP address for rate
-          # limiting and for the "secure" status of cookies. (optional)
-          Forwarded: true
+                # If set, X-Forwarded-* headers are used for the remote IP address for rate
+                # limiting and for the "secure" status of cookies. (optional)
+                Forwarded: true
 
-        # Serve prometheus metrics, for monitoring. You should not enable this on a public
-        # IP. (optional)
-        MetricsHTTP:
-          Enabled: true
+            # Serve prometheus metrics, for monitoring. You should not enable this on a public
+            # IP. (optional)
+            MetricsHTTP:
+                Enabled: true
 
-        # Serve autoconfiguration/autodiscovery to simplify configuring email
-        # applications, will use port 443. Requires a TLS config. (optional)
-        AutoconfigHTTPS:
-          Enabled: true
+            # Serve autoconfiguration/autodiscovery to simplify configuring email
+            # applications, will use port 443. Requires a TLS config. (optional)
+            AutoconfigHTTPS:
+                Enabled: true
 
-          # TLS port, 443 by default. You should only override this if you cannot listen on
-          # port 443 directly. Autoconfig requests will be made to port 443, so you'll have
-          # to add an external mechanism to get the connection here, e.g. by configuring
-          # port forwarding. (optional)
-          Port: 80
+                # TLS port, 443 by default. You should only override this if you cannot listen on
+                # port 443 directly. Autoconfig requests will be made to port 443, so you'll have
+                # to add an external mechanism to get the connection here, e.g. by configuring
+                # port forwarding. (optional)
+                Port: 81
 
-          # If set, plain HTTP instead of HTTPS is spoken on the configured port. Can be
-          # useful when the autoconfig domain is reverse proxied. (optional)
-          NonTLS: true
+                # If set, plain HTTP instead of HTTPS is spoken on the configured port. Can be
+                # useful when the autoconfig domain is reverse proxied. (optional)
+                NonTLS: true
 
-        # Serve MTA-STS policies describing SMTP TLS requirements. Requires a TLS config.
-        # (optional)
-        MTASTSHTTPS:
-          Enabled: true
+            # Serve MTA-STS policies describing SMTP TLS requirements. Requires a TLS config.
+            # (optional)
+            MTASTSHTTPS:
+                Enabled: true
 
-          # TLS port, 443 by default. You should only override this if you cannot listen on
-          # port 443 directly. MTA-STS requests will be made to port 443, so you'll have to
-          # add an external mechanism to get the connection here, e.g. by configuring port
-          # forwarding. (optional)
-          Port: 80
+                # TLS port, 443 by default. You should only override this if you cannot listen on
+                # port 443 directly. MTA-STS requests will be made to port 443, so you'll have to
+                # add an external mechanism to get the connection here, e.g. by configuring port
+                # forwarding. (optional)
+                Port: 81
 
-          # If set, plain HTTP instead of HTTPS is spoken on the configured port. Can be
-          # useful when the mta-sts domain is reverse proxied. (optional)
-          NonTLS: true
+                # If set, plain HTTP instead of HTTPS is spoken on the configured port. Can be
+                # useful when the mta-sts domain is reverse proxied. (optional)
+                NonTLS: true
 
-        # All configured WebHandlers will serve on an enabled listener. (optional)
-        WebserverHTTP:
-          Enabled: true
+            # All configured WebHandlers will serve on an enabled listener. (optional)
+            WebserverHTTP:
+                Enabled: true
 
-          # Port for plain HTTP (non-TLS) webserver. (optional)
-          Port: 80
-      public:
+                # Port for plain HTTP (non-TLS) webserver. (optional)
+                Port: 81
+        public:
 
-        # Use 0.0.0.0 to listen on all IPv4 and/or :: to listen on all IPv6 addresses, but
-        # it is better to explicitly specify the IPs you want to use for email, as mox
-        # will make sure outgoing connections will only be made from one of those IPs. If
-        # both outgoing IPv4 and IPv6 connectivity is possible, and only one family has
-        # explicitly configured addresses, both address families are still used for
-        # outgoing connections. Use the "direct" transport to limit address families for
-        # outgoing connections.
-        IPs:
-          {{- range .Values.mail.public.IPs }}
-          - {{ . }}
-          {{- end }}
-        # (optional)
-        SMTP:
-          Enabled: true
+            # Use 0.0.0.0 to listen on all IPv4 and/or :: to listen on all IPv6 addresses, but
+            # it is better to explicitly specify the IPs you want to use for email, as mox
+            # will make sure outgoing connections will only be made from one of those IPs. If
+            # both outgoing IPv4 and IPv6 connectivity is possible, and only one family has
+            # explicitly configured addresses, both address families are still used for
+            # outgoing connections. Use the "direct" transport to limit address families for
+            # outgoing connections.
+            IPs:
+                - 0.0.0.0
 
-          # Addresses of DNS block lists for incoming messages. Block lists are only
-          # consulted for connections/messages without enough reputation to make an
-          # accept/reject decision. This prevents sending IPs of all communications to the
-          # block list provider. If any of the listed DNSBLs contains a requested IP
-          # address, the message is rejected as spam. The DNSBLs are checked for healthiness
-          # before use, at most once per 4 hours. IPs we can send from are periodically
-          # checked for being in the configured DNSBLs. See MonitorDNSBLs in domains.conf to
-          # only monitor IPs we send from, without using those DNSBLs for incoming messages.
-          # Example DNSBLs: sbl.spamhaus.org, bl.spamcop.net. See
-          # https://www.spamhaus.org/sbl/ and https://www.spamcop.net/ for more information
-          # and terms of use. (optional)
-          #DNSBLs:
-            #- sbl.spamhaus.org
-            #- bl.spamcop.net
+            # (optional)
+            SMTP:
+                Enabled: false
 
-        # SMTP over TLS for submitting email, by email applications. Requires a TLS
-        # config. (optional)
-        Submissions:
-          Enabled: true
+                # Addresses of DNS block lists for incoming messages. Block lists are only
+                # consulted for connections/messages without enough reputation to make an
+                # accept/reject decision. This prevents sending IPs of all communications to the
+                # block list provider. If any of the listed DNSBLs contains a requested IP
+                # address, the message is rejected as spam. The DNSBLs are checked for healthiness
+                # before use, at most once per 4 hours. IPs we can send from are periodically
+                # checked for being in the configured DNSBLs. See MonitorDNSBLs in domains.conf to
+                # only monitor IPs we send from, without using those DNSBLs for incoming messages.
+                # Example DNSBLs: sbl.spamhaus.org, bl.spamcop.net. See
+                # https://www.spamhaus.org/sbl/ and https://www.spamcop.net/ for more information
+                # and terms of use. (optional)
+                #DNSBLs:
+                    #- sbl.spamhaus.org
+                    #- bl.spamcop.net
 
-        # IMAP over TLS for reading email, by email applications. Requires a TLS config.
-        # (optional)
-        IMAPS:
-          Enabled: true
+            # SMTP over TLS for submitting email, by email applications. Requires a TLS
+            # config. (optional)
+            Submissions:
+                Enabled: false
+
+            # IMAP over TLS for reading email, by email applications. Requires a TLS config.
+            # (optional)
+            IMAPS:
+                Enabled: false
 
     # Destination for emails delivered to postmaster addresses: a plain 'postmaster'
     # without domain, 'postmaster@<hostname>' (also for each listener with SMTP
     # enabled), and as fallback for each domain without explicitly configured
     # postmaster destination.
     Postmaster:
-      Account: admin
+        Account: admin
 
-      # E.g. Postmaster or Inbox.
-      Mailbox: Postmaster
+        # E.g. Postmaster or Inbox.
+        Mailbox: Postmaster
 
     # Destination for per-host TLS reports (TLSRPT). TLS reports can be per recipient
     # domain (for MTA-STS), or per MX host (for DANE). The per-domain TLS reporting
@@ -216,12 +214,12 @@ data:
     # TLSRPT DNS record is suggested. (optional)
     HostTLSRPT:
 
-      # Account to deliver TLS reports to. Typically same account as for postmaster.
-      Account: admin
+        # Account to deliver TLS reports to. Typically same account as for postmaster.
+        Account: admin
 
-      # Mailbox to deliver TLS reports to. Recommended value: TLSRPT.
-      Mailbox: TLSRPT
+        # Mailbox to deliver TLS reports to. Recommended value: TLSRPT.
+        Mailbox: TLSRPT
 
-      # Localpart at hostname to accept TLS reports at. Recommended value: tls-reports.
-      Localpart: tls-reports
+        # Localpart at hostname to accept TLS reports at. Recommended value: tls-reports.
+        Localpart: tls-reports
 
