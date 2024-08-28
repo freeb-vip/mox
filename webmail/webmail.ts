@@ -65,7 +65,6 @@ Enable consistency checking in UI updates:
 - todo: in msglistView, show names of people we have sent to, and address otherwise. or at don't show names for first-time senders.
 - todo: implement settings stored in the server, such as mailboxCollapsed, keyboard shortcuts. name to use for "From", optional default Reply-To and Bcc addresses, signatures (per address), configured labels/keywords with human-readable name, colors and toggling with shortcut keys 1-9.
 - todo: automated tests? perhaps some unit tests, then ui scenario's.
-- todo: compose, wrap lines
 - todo: composing of html messages. possibly based on contenteditable. would be good if we can include original html, but quoted. must make sure to not include dangerous scripts/resources, or sandbox it.
 - todo: make alt up/down keys work on html iframe too. requires loading it from sameorigin, to get access to its inner document.
 - todo: reconnect with last known modseq and don't clear the message list, only update it
@@ -86,7 +85,6 @@ Enable consistency checking in UI updates:
 - todo: previews of zip files
 - todo: undo?
 - todo: mobile-friendly version. should perhaps be a completely different app, because it is so different.
-- todo: basic vim key bindings in textarea/input. or just let users use a browser plugin.
 */
 
 class ConsistencyError extends Error {
@@ -108,16 +106,17 @@ const zindexes = {
 ensureCSS('.button', {display: 'inline-block'})
 ensureCSS('button, .button, select', {color: styles.color, backgroundColor: styles.buttonBackground, border: '1px solid', borderColor: styles.buttonBorderColor, borderRadius: '.15em', padding: '0 .15em'})
 ensureCSS('button.active, .button.active, button.active:hover, .button.active:hover', {backgroundColor: styles.highlightBackground})
-ensureCSS('button:hover, .button:hover, select:hover', {backgroundColor: styles.buttonHoverBackground})
+ensureCSS('button:hover:not(:disabled), .button:hover:not(:disabled), select:hover:not(:disabled)', {backgroundColor: styles.buttonHoverBackground})
+ensureCSS('button:disabled, .button:disabled, select:disabled', {opacity: .5})
 ensureCSS('input, textarea', {backgroundColor: styles.backgroundColor, color: styles.color, border: '1px solid', borderColor: '#888', borderRadius: '.15em', padding: '0 .15em'})
-ensureCSS('input:hover, textarea:hover', {borderColor: styles.colorMilder})
+ensureCSS('input:hover:not(:disabled), textarea:hover:not(:disabled)', {borderColor: styles.colorMilder})
 
 ensureCSS('.btngroup button, .btngroup .button', {borderRadius: 0, borderRightWidth: 0 })
 ensureCSS('.btngroup button:first-child, .btngroup .button:first-child', {borderRadius: '.15em 0 0 .15em'})
 ensureCSS('.btngroup button:last-child, .btngroup .button:last-child', {borderRadius: '0 .15em .15em 0', borderRightWidth: '1px'})
 
 const keywordButtonStyle = css('keywordButton', {cursor: 'pointer'})
-ensureCSS('.keywordButton:hover', {backgroundColor: styles.highlightBackgroundHover})
+ensureCSS('.keywordButton:hover:not(:disabled)', {backgroundColor: styles.highlightBackgroundHover})
 
 
 const yscrollStyle = css('yscroll', {overflowY: 'scroll', position: 'absolute', top: 0, bottom: 0, left: 0, right: 0})
@@ -158,7 +157,6 @@ const defaultSettings = {
 	refine: '', // Refine filters, e.g. '', 'attachments', 'read', 'unread', 'label:...'.
 	orderAsc: false, // Order from most recent to least recent by default.
 	ignoreErrorsUntil: 0, // For unhandled javascript errors/rejected promises, we normally show a popup for details, but users can ignore them for a week at a time.
-	showHTML: false, // Whether we show HTML version of email instead of plain text if both are present.
 	mailboxCollapsed: {} as {[mailboxID: number]: boolean}, // Mailboxes that are collapsed.
 	showAllHeaders: false, // Whether to show all message headers.
 	showHeaders: [] as string[], // Additional message headers to show.
@@ -216,7 +214,6 @@ const parseSettings = (): typeof defaultSettings => {
 			ignoreErrorsUntil: getInt('ignoreErrorsUntil'),
 			layout: getString('layout', 'auto', 'leftright', 'topbottom'),
 			showShortcuts: getBool('showShortcuts'),
-			showHTML: getBool('showHTML'),
 			mailboxCollapsed: mailboxCollapsed,
 			showAllHeaders: getBool('showAllHeaders'),
 			showHeaders: getStringArray('showHeaders'),
@@ -274,6 +271,7 @@ const login = async (reason: string) => {
 		const root = dom.div(
 			css('loginOverlay', {position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: styles.overlayOpaqueBackgroundColor, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: zindexes.login, animation: 'fadein .15s ease-in'}),
 			dom.div(
+				style({display: 'flex', flexDirection: 'column', alignItems: 'center'}),
 				reasonElem=reason ? dom.div(css('sessionError', {marginBottom: '2ex', textAlign: 'center'}), reason) : dom.div(),
 				dom.div(
 					css('loginPopup', {
@@ -1116,6 +1114,7 @@ const cmdSettings = async () => {
 	let signature: HTMLTextAreaElement
 	let quoting: HTMLSelectElement
 	let showAddressSecurity: HTMLInputElement
+	let showHTML: HTMLInputElement
 
 	if (!accountSettings) {
 		window.alert('No account settings fetched yet.')
@@ -1133,6 +1132,7 @@ const cmdSettings = async () => {
 					Signature: signature.value,
 					Quoting: quoting.value as api.Quoting,
 					ShowAddressSecurity: showAddressSecurity.checked,
+					ShowHTML: showHTML.checked,
 				}
 				await withDisabled(fieldset, client.SettingsSave(accSet))
 				accountSettings = accSet
@@ -1163,6 +1163,11 @@ const cmdSettings = async () => {
 					showAddressSecurity=dom.input(attr.type('checkbox'), accountSettings.ShowAddressSecurity ? attr.checked('') : []),
 					' Show address security indications',
 					attr.title('Show bars underneath address input fields, indicating support for STARTTLS/DNSSEC/DANE/MTA-STS/RequireTLS.'),
+				),
+				dom.label(
+					style({margin: '1ex 0', display: 'block'}),
+					showHTML=dom.input(attr.type('checkbox'), accountSettings.ShowHTML ? attr.checked('') : []),
+					' Show HTML instead of text version by default',
 				),
 				dom.br(),
 				dom.div(
@@ -3052,7 +3057,6 @@ const newMsgView = (miv: MsgitemView, msglistView: MsglistView, listMailboxes: l
 			return
 		}
 		loadText(await parsedMessagePromise)
-		settingsPut({...settings, showHTML: false})
 		activeBtn(textbtn)
 		await fromAddressSettingsSave(api.ViewMode.ModeText)
 	}
@@ -3543,19 +3547,19 @@ const newMsgView = (miv: MsgitemView, msglistView: MsglistView, listMailboxes: l
 			loadText(pm)
 			dom._kids(msgmodeElem)
 		} else {
-			const text = haveText && (pm.ViewMode == api.ViewMode.ModeText || pm.ViewMode == api.ViewMode.ModeDefault && !settings.showHTML)
+			const text = haveText && pm.ViewMode == api.ViewMode.ModeText
 			dom._kids(msgmodeElem,
 				dom.div(dom._class('pad'),
 					msgHeaderSeparatorStyle,
 					!haveText ? dom.span('HTML-only message', attr.title(htmlNote), msgModeWarningStyle, style({marginRight: '.25em'})) : [],
 					dom.span(dom._class('btngroup'),
 						haveText ? textbtn=dom.clickbutton(text ? dom._class('active') : [], 'Text', clickCmd(cmdShowText, shortcuts)) : [],
-						htmlbtn=dom.clickbutton(text || pm.ViewMode != api.ViewMode.ModeHTML ? [] : dom._class('active'), 'HTML', attr.title(htmlNote), async function click() {
+						htmlbtn=dom.clickbutton(text || !text && pm.ViewMode == api.ViewMode.ModeHTMLExt ? [] : dom._class('active'), 'HTML', attr.title(htmlNote), async function click() {
 							// Shortcuts has a function that cycles through html and htmlexternal.
 							showShortcut('T')
 							await cmdShowHTML()
 						}),
-						htmlextbtn=dom.clickbutton(text || pm.ViewMode != api.ViewMode.ModeHTMLExt ? [] : dom._class('active'), 'HTML with external resources', attr.title(htmlNote), clickCmd(cmdShowHTMLExternal, shortcuts)),
+						htmlextbtn=dom.clickbutton(text || !text && pm.ViewMode != api.ViewMode.ModeHTMLExt ? [] : dom._class('active'), 'HTML with external resources', attr.title(htmlNote), clickCmd(cmdShowHTMLExternal, shortcuts)),
 					),
 				)
 			)
@@ -7204,7 +7208,7 @@ const init = async () => {
 			}
 		} catch (err) {}
 
-		eventSource = new window.EventSource('events?token=' + encodeURIComponent(token)+'&request='+encodeURIComponent(JSON.stringify(request))+slow)
+		eventSource = new window.EventSource('events?singleUseToken=' + encodeURIComponent(token)+'&request='+encodeURIComponent(JSON.stringify(request))+slow)
 		let eventID = window.setTimeout(() => dom._kids(statusElem, 'Connecting... '), 1000)
 		eventSource.addEventListener('open', (e: Event) => {
 			log('eventsource open', {e})
