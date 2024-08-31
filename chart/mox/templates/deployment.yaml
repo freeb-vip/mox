@@ -35,7 +35,7 @@ spec:
       initContainers:
         - name: {{ .Chart.Name }}-init
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          command: ['sh', '-c', "if [ -f /mox/config/mox.conf ];then echo ok;else mox quickstart -existing-webserver -hostname {{ .Values.mail.hostname | default "mail.example.com" }} {{ .Values.mail.name }} mox;fi && unexpand -f -t 4 /opt/config/mox.conf > /mox/config/mox.conf"]
+          command: ['sh', '-c', "if [ -f /mox/config/mox.conf ];then echo ok;else mox quickstart -existing-webserver -hostname {{ .Values.mail.hostname | default "mail.example.com" }} {{ .Values.mail.name }} mox > /mox/init.txt;fi && unexpand -f -t 4 /opt/config/mox.conf > /mox/config/mox.conf"]
           volumeMounts:
             - name: config
               mountPath: /opt/config/mox.conf
@@ -67,12 +67,29 @@ spec:
           env:
             - name: MOXCONF
               value: "/mox/config/mox.conf"
-            - name: MOX_DOCKER
-              value: "yes"
           volumeMounts:
             - name: data
               mountPath: /mox
+            {{- range .Values.ingress.tls }}
+            - name: {{ .secretName }}
+              {{- range .hosts }}
+              mountPath: "/cert/{{ . }}"
+              {{- end }}
+              readOnly: true
+            {{- end }}
       volumes:
+          {{- range .Values.ingress.tls }}
+        - name: {{ .secretName }}
+          secret:
+            secretName: {{ .secretName }}
+            items:
+              {{- range .hosts }}
+              - key: tls.crt
+                path: tls.crt
+              - key: tls.key
+                path: tls.key
+              {{- end }}
+          {{- end }}
         - name: config
           configMap: 
             name: {{ include "mox.fullname" . }}

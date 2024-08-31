@@ -60,7 +60,7 @@ data:
             # outgoing connections. Use the "direct" transport to limit address families for
             # outgoing connections.
             IPs:
-                - 127.0.0.1
+                - 0.0.0.0
                 - ::1
 
             # If empty, the config global Hostname is used. (optional)
@@ -72,7 +72,7 @@ data:
                 Enabled: true
 
                 # Default 80 for HTTP and 443 for HTTPS. (optional)
-                Port: 1080
+                Port: {{ .Values.service.port }}
 
                 # If set, X-Forwarded-* headers are used for the remote IP address for rate
                 # limiting and for the "secure" status of cookies. (optional)
@@ -87,7 +87,7 @@ data:
                 Enabled: true
 
                 # Default 80 for HTTP and 443 for HTTPS. (optional)
-                Port: 1080
+                Port: {{ .Values.service.port }}
 
                 # If set, X-Forwarded-* headers are used for the remote IP address for rate
                 # limiting and for the "secure" status of cookies. (optional)
@@ -98,7 +98,7 @@ data:
                 Enabled: true
 
                 # Default 80 for HTTP and 443 for HTTPS. (optional)
-                Port: 1080
+                Port: {{ .Values.service.port }}
 
                 # If set, X-Forwarded-* headers are used for the remote IP address for rate
                 # limiting and for the "secure" status of cookies. (optional)
@@ -109,7 +109,7 @@ data:
                 Enabled: true
 
                 # Default 80 for HTTP and 443 for HTTPS. (optional)
-                Port: 1080
+                Port: {{ .Values.service.port }}
 
                 # If set, X-Forwarded-* headers are used for the remote IP address for rate
                 # limiting and for the "secure" status of cookies. (optional)
@@ -129,7 +129,7 @@ data:
                 # port 443 directly. Autoconfig requests will be made to port 443, so you'll have
                 # to add an external mechanism to get the connection here, e.g. by configuring
                 # port forwarding. (optional)
-                Port: 81
+                Port: {{ .Values.service.port }}
 
                 # If set, plain HTTP instead of HTTPS is spoken on the configured port. Can be
                 # useful when the autoconfig domain is reverse proxied. (optional)
@@ -144,7 +144,7 @@ data:
                 # port 443 directly. MTA-STS requests will be made to port 443, so you'll have to
                 # add an external mechanism to get the connection here, e.g. by configuring port
                 # forwarding. (optional)
-                Port: 81
+                Port: {{ .Values.service.port }}
 
                 # If set, plain HTTP instead of HTTPS is spoken on the configured port. Can be
                 # useful when the mta-sts domain is reverse proxied. (optional)
@@ -155,7 +155,7 @@ data:
                 Enabled: true
 
                 # Port for plain HTTP (non-TLS) webserver. (optional)
-                Port: 81
+                Port: {{ .Values.service.port }}
         public:
 
             # Use 0.0.0.0 to listen on all IPv4 and/or :: to listen on all IPv6 addresses, but
@@ -167,10 +167,43 @@ data:
             # outgoing connections.
             IPs:
                 - 0.0.0.0
+                - ::
+            # For SMTP/IMAP STARTTLS, direct TLS and HTTPS connections. (optional)
+            TLS:
 
+                # Keys and certificates to use for this listener. The files are opened by the
+                # privileged root process and passed to the unprivileged mox process, so no
+                # special permissions are required on the files. If the private key will not be
+                # replaced when refreshing certificates, also consider adding the private key to
+                # HostPrivateKeyFiles and configuring DANE TLSA DNS records. (optional)
+                KeyCerts:
+                    -
+
+                        # Certificate including intermediate CA certificates, in PEM format.
+                        CertFile: /cert/mail.freeb.vip/tls.crt
+
+                        # Private key for certificate, in PEM format. PKCS8 is recommended, but PKCS1 and
+                        # EC private keys are recognized as well.
+                        KeyFile: /cert/mail.freeb.vip/tls.key
+                    -
+
+                        # Certificate including intermediate CA certificates, in PEM format.
+                        CertFile: /cert/mta-sts.freeb.vip/tls.crt
+
+                        # Private key for certificate, in PEM format. PKCS8 is recommended, but PKCS1 and
+                        # EC private keys are recognized as well.
+                        KeyFile: /cert/mta-sts.freeb.vip/tls.key
+                    -
+
+                        # Certificate including intermediate CA certificates, in PEM format.
+                        CertFile: /cert/autoconfig.freeb.vip/tls.crt
+
+                        # Private key for certificate, in PEM format. PKCS8 is recommended, but PKCS1 and
+                        # EC private keys are recognized as well.
+                        KeyFile: /cert/autoconfig.freeb.vip/tls.key
             # (optional)
             SMTP:
-                Enabled: false
+                Enabled: true
 
                 # Addresses of DNS block lists for incoming messages. Block lists are only
                 # consulted for connections/messages without enough reputation to make an
@@ -183,19 +216,19 @@ data:
                 # Example DNSBLs: sbl.spamhaus.org, bl.spamcop.net. See
                 # https://www.spamhaus.org/sbl/ and https://www.spamcop.net/ for more information
                 # and terms of use. (optional)
-                #DNSBLs:
-                    #- sbl.spamhaus.org
-                    #- bl.spamcop.net
+                DNSBLs:
+                    - sbl.spamhaus.org
+                    - bl.spamcop.net
 
             # SMTP over TLS for submitting email, by email applications. Requires a TLS
             # config. (optional)
             Submissions:
-                Enabled: false
+                Enabled: true
 
             # IMAP over TLS for reading email, by email applications. Requires a TLS config.
             # (optional)
             IMAPS:
-                Enabled: false
+                Enabled: true
 
     # Destination for emails delivered to postmaster addresses: a plain 'postmaster'
     # without domain, 'postmaster@<hostname>' (also for each listener with SMTP
