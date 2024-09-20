@@ -1,0 +1,294 @@
+# Default values for roundcubemail.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: registry.freeb.vip/freeb/roundcubemail
+  pullPolicy: Always #IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  className: ""
+  path: "/"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: email.freeb.vip
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls:
+    - secretName: email-freeb-vip-tls-secret
+      hosts:
+        - email.freeb.vip
+config:
+
+  ## DES Key for session encryption.
+  ## Will be generated randomly if not set.
+  desKey:
+
+  ## User interface default language.
+  defaultLanguage: zh_CN
+
+  ## Allow for custom skin installation
+  skins:
+    classic:
+      enabled: false
+      composerPackage:
+        name: roundcube/classic
+        version: 1.6.0
+
+    larry:
+      enabled: false
+      composerPackage:
+        name: roundcube/larry
+        version: 1.6.1
+
+    ## custom skin example
+    #custom:
+    #  enabled: true
+    #  composerPackage:
+    #    name: custom (defaults to roundcube/{{ skin name }})
+    #    version: 1.0 (defaults to rounddube version)
+
+  ## User interface default skin.
+  defaultSkin: elastic
+
+  ## Plugin configuration
+  plugins:
+
+    ## https://github.com/roundcube/roundcubemail/blob/master/plugins/managesieve/config.inc.php.dist
+    managesieve:
+      enabled: false
+      config:
+        host: "%h:4190"
+        useTls: true
+
+    ## Context menu plugin: Adds context menus with common tasks to various parts of Roundcube
+    ## https://packagist.org/packages/johndoh/contextmenu
+    ## Example for a dynamically installed plugin (via composer)
+    contextmenu:
+
+      ## Enabled installing and loading the plugin.
+      enabled: false
+
+      ## composer package information
+      composerPackage:
+        name: "johndoh/contextmenu"
+        version: "3.3"
+
+  ## Maximum allowed upload file size (e.g., for attachmentes).
+  ## Do not forget to adjust ingress accordingly, e.g., by adding the following annotation:
+  ##   nginx.ingress.kubernetes.io/proxy-body-size: 25m
+  uploadMaxFilesize: 100M
+
+  ## Custom Roundcube configuration parameters
+  customRoundcubeConfig: |
+    /*
+     * Custom Roundcube Configuration values
+     * Check https://github.com/roundcube/roundcubemail/wiki/Configuration for available options.
+     */
+
+    // $config['skin_logo'] = "";
+    // $config['support_url'] = "https://www.freeb.vip/";
+
+  ## Custom configuration for PHP interpreter
+  customPhpConfig: |
+    ## Configure custom memory limit for PHP
+    # memory_limit=512M
+
+  ## Custom configuration for PHP-FPM
+  ## Comment lines with semicolumn (;) in this file
+  ## don't use pound (#) to comment lines
+  customPhpFpmConfig: |
+    ;pm.max_children=300
+    ;pm.status_path=/status
+
+## Configure database creation/usage
+database:
+  ## Which database source should be used
+  ## Supported values:
+  ##   * external:         Do not create a database, but use an existing external database. See `externalDatabase` for further configuration.
+  ##   * zalando-postgres: Request a database to be created by Zalando Postgres operator (https://github.com/zalando/postgres-operator, operator needs to be preinstalled)
+  source: external
+
+  ## Number of database cluster instances to be launched
+  ## (only applicable for source=zalando-postgres)
+  instances: 2
+
+  ## Size of the volume to be created for the database
+  volumeSize: 5Gi
+
+  ## Name of the StorageClass to be used for the volume
+  storageClassName:
+
+## Configuration for an external database (not deployed within this chart)
+## When working with a NetworkPolicy, add an egress rule to networkPolicy.egress.additionalRules to allow access to the database.
+externalDatabase:
+  ## Type of the external database. supported: mysql, pgsql, sqlite
+  type: pgsql
+
+  ## Hostname of the external database server
+  host: postgresql-ha-pgpool.postgresql-ha
+
+  ## Port number of the external database server
+  port: 5432
+
+  ## Database name
+  name: roundcube
+
+  ## Username for the external database server
+  user: postgres
+
+  ## Password for the external database server
+  password: ""
+
+## IMAP settings
+imap:
+  ## Hostname or IP address of your IMAP server
+  host: mall.freeb.vip
+
+  ## IMAP port. Default ports depending on encryption setting:
+  ##   143 - none, STARTTLS
+  ##   993 - SSL/TLS (recommended)
+  port: 993
+
+  ## Transport encryption. Please change port accordingly. Allowed values:
+  ##   none     - no encryption
+  ##   starttls - use STARTTLS
+  ##   ssltls   - use SSL/TLS (recommended)
+  encryption: ssltls
+
+
+## SMTP settings
+smtp:
+  ## Hostname or IP address of your SMTP server
+  host: mall.freeb.vip
+
+  ## SMTP port. Default ports depending on encryption setting:
+  ##    25 - none
+  ##   465 - SSL/TLS
+  ##   587 - STARTTLS (recommended)
+  port: 465
+
+  ## Transport encryption. Please change port accordingly. Allowed values:
+  ##   none     - no encryption
+  ##   starttls - use STARTTLS
+  ##   ssltls   - use SSL/TLS (recommended)
+  encryption: ssltls
+
+  ## SMTP username (use "%u" tp use IMAP username)
+  username: "%u"
+
+  ## SMTP password (use "%p" tp use IMAP password)
+  password: "%p"
+
+
+## Additional configuration for the ConfigMap resource
+configMap:
+  ## Additional labels for the ConfigMap resource
+  additionalLabels: {}
+
+  ## Additional annotations for the ConfigMap resource
+  additionalAnnotations: {}
+
+
+## Additional configuration for the Secret resource
+secret:
+  ## Additional labels for the Secret resource
+  additionalLabels: {}
+
+  ## Additional annotations for the Secret resource
+  additionalAnnotations: {}
+
+
+## Additional configuration for the Deployment resource
+deployment:
+  ## Number of instances of Roundcube to be started
+  replicas: 1
+
+  ## Deployment strategy (see https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/deployment-v1/#DeploymentSpec)
+  strategy:
+    ## Deployment strategy type
+    type: RollingUpdate
+
+  ## Roundcube container's HTTP port
+  port: 80
+
+  ## Define additional ImagePullSecrets.
+  imagePullSecrets:
+    ## You can refer to existing ImagePullSecrets as follows:
+    # - name: my-custom-secret
+
+  ## Additional labels for the Deployment resource
+  additionalLabels: {}
+
+  ## Additional annotations for the Deployment resource
+  additionalAnnotations: {}
+
+  ## Pod affinity rule preset (see https://docs.bitnami.com/tutorials/assign-pod-nodes-helm-affinity-rules/)
+  podAffinityPreset: ""
+
+  ## Pod anti affinity rule preset (see https://docs.bitnami.com/tutorials/assign-pod-nodes-helm-affinity-rules/)
+  podAntiAffinityPreset: hard
+
+  ## Custom affinity rules (overrides podAffinityPreset and podAntiAffinityPreset)
+  affinity: {}
+
+  ## Configure resource allocation and limits
+  resources: {}
+  #   requests:
+  #     memory: "256Mi"
+  #     cpu: "1000m"
+  #   limits:
+  #     memory: "256Mi"
+  #     cpu: "1000m"
+
+  ## Allow defining custom actions to be executed before deploying main container (e.g.: to prepare database)
+  initContainers: []
+
+  containers:
+    nginx:
+      image: registry.freeb.vip/library/nginx:1.25.4
+      imagePullPolicy: IfNotPresent
+
+
+persistence:
+  enabled: true
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  storageClass: ""
